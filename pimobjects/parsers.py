@@ -1,75 +1,50 @@
 # coding: utf-8
 
 
-from .exceptions import ParseError, InvalidCodificationError
+from .exceptions import ParseError
 from .helpers import escape
 
 
-(
-    KEY,
-    ARGS,
-    VALUE,
-) = range(3)
-
-
 class ParsedLine(object):
-    def __init__(self):
+    def __init__(self, parts):
+        self.parts = parts
         self.group = None
         self.key = ""
         self.args = []
         self.kwargs = {}
-        self._values = []
-        self._part = []
+        self.values = []
+
+        self._initialize()
+
+    def _initialize(self):
+        for part in self.parts:
+            if isinstance(part, Key):
+                self.set_key(str(part))
+            elif isinstance(part, Attribute):
+                self.add_attribute(str(part))
+            else:
+                self.add_value(part)
 
     def set_key(self, key):
-        if u"." not in key:
+        if "." not in key:
             self.key = key
             return
+
         try:
             self.group, self.key = key.split(".")
         except ValueError:
             raise ParseError("Invalid Group Name: %s" % (key,))
 
-    def add_arg(self, arg):
-        if not arg.strip():
-            return
-
-        if arg == u";":
-            return
-
-        if u"=" not in arg:
+    def add_attribute(self, arg):
+        if "=" not in arg:
             self.args.append(arg.strip())
             return
 
-        key, value = arg.split(u"=", 1)
+        key, value = arg.split("=", 1)
         self.kwargs[key.strip()] = value.strip()
 
-    @property
-    def values(self):
-        if self._part:
-            self._values.append(self._part)
-            self._part = []
-        print self._values, self._part
-        return self._values
-
     def add_value(self, value):
-        value = value.strip()
-
-        # rejoin ":" in value part to handle cases where we have URLs
-        if (value == u":" and self._part) or \
-           (self._part and self._part[-1].endswith(":")):
-            self._part[-1] += value
-            return
-
-        if value == u";":
-            self._values.append(self._part)
-            self._part = []
-            return
-
-        if value == u",":
-            return
-
-        self._part.append(value)
+        self.values.append(value)
 
     def __unicode__(self):
         key = self.key
@@ -79,7 +54,7 @@ class ParsedLine(object):
         args = self.args[:]
         for item in self.kwargs.iteritems():
             args.append(escape(u"%s=%s" % item))
-        args.insert(0, "")
+        args.insert(0, u"")
 
         values = []
         for value in self.values:
@@ -95,54 +70,68 @@ class ParsedLine(object):
         return "<ParsedLine %s>" % (self,)
 
 
+class Key(str):
+    def __repr__(self):
+        return "Key(%s)" % (self,)
+
+
+class Attribute(str):
+    def __repr__(self):
+        return "Attr(%s)" % (self,)
+
+
+class Values(list):
+    def __repr__(self):
+        return "Value(%s)" % (", ".join(self))
+
+
+def _flush_part(parts, part, state):
+    part = state("".join(part).strip())
+    if part:
+        parts.append(part)
+    return []
+
+
 def parse_line(line):
     if not line:
         raise ParseError("Empty line")
 
-    if not isinstance(line, unicode):
-        try:
-            line = line.decode("utf-8")
-        except UnicodeDecodeError:
-            raise InvalidCodificationError("String must be encoded as UTF-8 string")
-
     parts = []
     part = []
+    state = Key
     for char in line.strip():
         if part and part[-1] == "\\":
             part[-1] = char
             continue
 
-        if char in u":;,":
-            if part:
-                parts.append(u"".join(part))
-                part = []
+        elif state in (Key, Attribute):
+            if char == ":":
+                part = _flush_part(parts, part, state)
+                state = Values
+                parts.append(Values())
+                continue
 
-            parts.append(char)
-            continue
+            if char == ";":
+                part = _flush_part(parts, part, state)
+                state = Attribute
+                continue
+
+        else:  # Value
+            if char == ";":
+                part = _flush_part(parts[-1], part, str)
+                parts.append(Values())
+                continue
+
+            if char == ",":
+                parts[-1].append("".join(part))
+                part = []
+                continue
 
         part.append(char)
 
-    if part:
-        parts.append(u"".join(part))
+    _flush_part(parts[-1], part, str)
 
-    parsed = ParsedLine()
-    state = KEY
-
-    for part in parts:
-        if part == u";" and state == KEY:
-            state = ARGS
-            continue
-
-        if part == u":" and state != VALUE:
-            state = VALUE
-            continue
-
-        if state == KEY:
-            parsed.set_key(part)
-        elif state == ARGS:
-            parsed.add_arg(part)
-        else:  # VALUE
-            parsed.add_value(part)
+    parsed = ParsedLine(parts)
 
     if not parsed.key:
         raise ParseError("Empty Key Part")
