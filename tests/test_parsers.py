@@ -6,7 +6,6 @@ from pimobjects.exceptions import ParseError, InvalidCodificationError
 from pimobjects.parsers import parse_line
 
 
-
 class ParsersTest(TestCase):
     def test_parse_line(self):
         line = parse_line("BEGIN:VCARD")
@@ -43,8 +42,10 @@ class ParsersTest(TestCase):
     def test_fail_empty_key(self):
         self.assertRaises(ParseError, parse_line, "  :Error")
 
-    def test_fail_duplicated_separators(self):
-        self.assertRaises(ParseError, parse_line, "FN:Foo:Bar")
+    def test_value_duplicated_separators(self):
+        line = parse_line("FN:Foo:Bar")
+        self.assertEquals(line.key, u"FN")
+        self.assertEquals(line.values[0][0], u"Foo:Bar")
 
     def test_parse_group(self):
         line = parse_line("g.FN:Foo")
@@ -81,3 +82,9 @@ class ParsersTest(TestCase):
         line = line.encode("utf-8")
         parsed_line = parse_line(line)
         self.assertEquals(str(parsed_line), line)
+
+    def test_representation(self):
+        line = u"g.ADR;ARG;TYPE=WORK:222;Qualquer;Rua Bla\, 910 - ap.101;Alguma,Rua;Sem estado;101 10-990;Smurfs Village"
+        line = line.encode("utf-8")
+        parsed_line = parse_line(line)
+        self.assertEquals(repr(parsed_line), "<ParsedLine %s>" % (line,))

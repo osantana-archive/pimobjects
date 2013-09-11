@@ -2,6 +2,7 @@
 
 
 from .exceptions import ParseError, InvalidCodificationError
+from .helpers import escape
 
 
 (
@@ -9,10 +10,6 @@ from .exceptions import ParseError, InvalidCodificationError
     ARGS,
     VALUE,
 ) = range(3)
-
-
-def _escape(string):
-    return string.replace(u";", ur"\;").replace(u",", ur"\,").replace(u":", ur"\:")
 
 
 class ParsedLine(object):
@@ -52,10 +49,17 @@ class ParsedLine(object):
         if self._part:
             self._values.append(self._part)
             self._part = []
+        print self._values, self._part
         return self._values
 
     def add_value(self, value):
         value = value.strip()
+
+        # rejoin ":" in value part to handle cases where we have URLs
+        if (value == u":" and self._part) or \
+           (self._part and self._part[-1].endswith(":")):
+            self._part[-1] += value
+            return
 
         if value == u";":
             self._values.append(self._part)
@@ -70,16 +74,16 @@ class ParsedLine(object):
     def __unicode__(self):
         key = self.key
         if self.group:
-            key = _escape(u"%s.%s" % (self.group, key))
+            key = escape(u"%s.%s" % (self.group, key))
 
         args = self.args[:]
         for item in self.kwargs.iteritems():
-            args.append(_escape(u"%s=%s" % item))
+            args.append(escape(u"%s=%s" % item))
         args.insert(0, "")
 
         values = []
         for value in self.values:
-            escaped = u",".join(_escape(v) for v in value)
+            escaped = u",".join(escape(v) for v in value)
             values.append(escaped)
 
         return u"%s%s:%s" % (key, ";".join(args), ";".join(values))
@@ -129,9 +133,7 @@ def parse_line(line):
             state = ARGS
             continue
 
-        if part == u":":
-            if state == VALUE:
-                raise ParseError("Duplicated separator")
+        if part == u":" and state != VALUE:
             state = VALUE
             continue
 

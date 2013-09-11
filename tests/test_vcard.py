@@ -2,9 +2,10 @@
 
 
 from unittest import TestCase
+import unittest
 from pimobjects.exceptions import InvalidCodificationError
 
-from pimobjects.vcard import VCard
+from pimobjects.vcards import VCard
 
 
 IMAGE = ur"""/9j/4AAQSkZJRgABAQEASABIAAD//gATQ3JlYXRlZCB3aXRoIEdJTVD/2wBDAP//
@@ -14,10 +15,8 @@ IMAGE = ur"""/9j/4AAQSkZJRgABAQEASABIAAD//gATQ3JlYXRlZCB3aXRoIEdJTVD/2wBDAP//
   AAAAAP/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAA
   AAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKAA/9k="""
 
-
 ENCODED_AVATAR = ur"""PHOTO;X-ABCROP-RECTANGLE=ABClipRect_1&0&0&512&512&iUti9FPltdD+JZ8iJ5V7Lw==;ENCODING=b;TYPE=JPEG:
  {}""".format(IMAGE)
-
 
 VCARDS = {
 
@@ -72,6 +71,7 @@ END:VCARD
 }
 
 
+@unittest.skip
 class BasicVCardTest(TestCase):
     def test_preserve_raw(self):
         vcard = VCard()
