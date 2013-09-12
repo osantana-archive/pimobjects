@@ -3,6 +3,7 @@
 
 from unittest import TestCase
 
+
 from pimobjects.exceptions import ParseError
 from pimobjects.parsers import parse_line, Key, Attribute, Values
 

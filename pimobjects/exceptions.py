@@ -11,3 +11,7 @@ class InvalidCodificationError(VCardError):
 
 class ParseError(VCardError):
     pass
+
+
+class UnknownPropertyError(VCardError):
+    pass

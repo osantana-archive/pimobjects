@@ -16,3 +16,7 @@ def utf8_decode(raw):
 
 def escape(string):
     return string.replace(u";", ur"\;").replace(u",", ur"\,").replace(u":", ur"\:")
+
+
+def join_values(values):
+    return ";".join(",".join(value) for value in values)
